@@ -1,0 +1,47 @@
+using log4net;
+using SeleniumTestFramework.LogScript;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+
+namespace SeleniumTestFramework.Cleanup
+{
+    public class CleanUpData : LogService
+    {
+        public CleanUpData(ILog logger) : base(logger) { }
+        public void DeleteDirectories(string path, int noOfDayOld)
+        {
+            if (Directory.Exists(path))
+            {
+                DirectoryInfo logDirectory = new DirectoryInfo(path + "\\");
+                LogInfo("Get all folders in that Logs folder");
+                DirectoryInfo[] allDirectories = logDirectory.GetDirectories();
+                LogInfo("Checking folder creation date");
+                if (allDirectories != null && allDirectories.Length > 0)
+                {
+                    foreach (DirectoryInfo dir in allDirectories)
+                    {
+                        if (dir.Name.Contains("TestLogs-"))
+                        {
+                            log.Info("Delete process started for directory: " + dir.Name);
+                            if (dir.CreationTime < DateTime.Now.AddDays(noOfDayOld))
+                            {
+                                LogInfo("Yes, folder IS older than " + noOfDayOld + " days, deleting folder: " + dir);
+                                dir.Delete(true);
+                            }
+                            else
+                            {
+                                LogInfo("No, folder IS NOT older than " + noOfDayOld + " days, do not delete: " + dir);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    LogInfo("No folders exist");
+                }
+            }
+        }
+    }
+}
