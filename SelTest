@@ -1,0 +1,188 @@
+using AventStack.ExtentReports;
+using AventStack.ExtentReports.Reporter;
+using AventStack.ExtentReports.Reporter.Configuration;
+using log4net;
+using log4net.Repository;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenQA.Selenium;
+using SeleniumTestFramework.Cleanup;
+using SeleniumTestFramework.DataMethods;
+using SeleniumTestFramework.Initialize;
+using SeleniumTestFramework.LogScript;
+using SeleniumTestFramework.Utilities;
+using SeleniumTestFramework.WebPages;
+using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.IO;
+using System.Text;
+using System.Threading;
+
+[assembly: Parallelize(Workers = 3, Scope = ExecutionScope.MethodLevel)]
+
+namespace SeleniumTestFramework.TestCaseSuite
+{
+    [TestClass]
+    public class DemoTesting : LogService
+    {
+        public TestContext TestContext { get; set; }
+        IWebDriver driver;
+        private LoginPage loginPage => new LoginPage(driver, log);
+        BasePage basePage => new BasePage(driver, log);
+        DataDriven data => new DataDriven(log);
+        Utility util => new Utility(log);
+        public static ExtentReports extent = new ExtentReports();
+        public ExtentTest exParentTest;
+        public ExtentTest exChildTest;
+        public static string dir = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
+        CleanUpData cleanUp => new CleanUpData(log);
+        private string testDataPath = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName + @"\TestData\testdata.xlsx";
+        private uint browserPID;
+        private string BrowserNameFromConfig = ConfigurationManager.AppSettings["Browser"];
+        private static string FolderName = "TestLogs- " + GenerateTimeStamp();
+        private static string AllLogsDirectory = ConfigurationManager.AppSettings["LogDirectory"] + @"\" + FolderName;
+        private static string LogsDirectory = AllLogsDirectory + @"\TestLogs";
+        private static string ScreenshotDirectory = AllLogsDirectory + @"\Screnshoots";
+
+        [TestMethod]
+        public void TestReadData()
+        {
+            exParentTest = extent.CreateTest(TestContext.TestName);
+            exParentTest.Log(Status.Info, "Test " + TestContext.TestName + " started...");
+            LogInfo("Test " + TestContext.TestName + " started...");
+            LogInfo("Read value from excel");
+            exChildTest = exParentTest.CreateNode("Reading data from excel");
+            var arr = data.GetDataFromExcelFile(testDataPath, 1);
+            LogInfo("Values are: " + arr[1, 1] + "," + arr[1, 2]);
+            exChildTest.Log(Status.Info, "Successfully read data");
+            Console.WriteLine("Check Values {0} , {1}", arr[1, 1], arr[1, 2]);
+            LogInfo("Test completed");
+        }
+        [TestMethod]
+        public void WriteData()
+        {
+            exParentTest = extent.CreateTest(TestContext.TestName);
+            exParentTest.Log(Status.Info, "Test " + TestContext.TestName + " started...");
+            LogInfo("Test " + TestContext.TestName + " started...");
+            LogInfo("Write value to excel");
+            exChildTest = exParentTest.CreateNode("Writing data into excel");
+            data.WriteExcelData(testDataPath, 6, 1, "Newly Added");
+            exChildTest.Log(Status.Info, "Successfully written data");
+            LogInfo("Test completed");
+        }
+        [TestMethod]
+        public void IncorrectLogin_Test3()
+        {
+            exParentTest = extent.CreateTest(TestContext.TestName);
+            exParentTest.Log(Status.Info, "Test " + TestContext.TestName + " started...");
+            LogInfo("Test " + TestContext.TestName + " started...");
+            exChildTest = exParentTest.CreateNode("User try to login with invalid cred");
+            var commonPage = loginPage.VerifyLoginPage()
+                                      .LoginToApplication("randomText", "pwd")
+                                      .VerifyHomepage();
+            LogInfo("Test completed");
+        }
+        [TestMethod]
+        public void CompletePurchase_Test1And2()
+        {
+            exParentTest = extent.CreateTest(TestContext.TestName);
+            exParentTest.Log(Status.Info, "Test " + TestContext.TestName + " started...");
+            LogInfo("Test " + TestContext.TestName + " started...");
+            exChildTest = exParentTest.CreateNode("User try to complete order");
+            var arr = data.GetDataFromExcelFile(testDataPath, 1);
+            var commonPage = loginPage.VerifyLoginPage()
+                                      .LoginToApplication("standard_user", "secret_sauce");
+
+            commonPage.VerifyHomepage()
+                      .AddProduct("sauce-labs-backpack")
+                      .AddProduct("sauce-labs-bike-light")
+                      .CompletePurchase(arr[1, 1], arr[1, 2], "P584")
+                      .ConfirmPurchase()
+                      .LogoutFromApp()
+                      .VerifyLoginPage();
+
+            LogInfo("Test completed");
+        }
+
+        [AssemblyInitialize]
+        public static void BeforeClass(TestContext testContext)
+        {
+            //Create main Log directory and testlogs, screenshot and video folders under main directory
+            if (!File.Exists(AllLogsDirectory))
+            {
+                Directory.CreateDirectory(AllLogsDirectory);
+            }
+            if (!File.Exists(LogsDirectory))
+            {
+                Directory.CreateDirectory(LogsDirectory);
+            }
+            if (!File.Exists(ScreenshotDirectory))
+            {
+                Directory.CreateDirectory(ScreenshotDirectory);
+            }
+
+            string dirPath = dir + @"\Report\" + "DemoTesting" + ".html";
+            //ExtentV3HtmlReporter htmlReporter = new ExtentV3HtmlReporter(dirPath);
+            ExtentHtmlReporter htmlReporter = new ExtentHtmlReporter(dirPath);
+            htmlReporter.Config.Theme = Theme.Dark;
+            htmlReporter.Config.DocumentTitle = "My Test Report";
+            htmlReporter.Config.ReportName = "Regression Tests Report";
+            extent.AddSystemInfo("Environment", "OS Widows");
+            extent.AttachReporter(htmlReporter);
+            extent.AddSystemInfo("User Name", System.Security.Principal.WindowsIdentity.GetCurrent().Name);
+        }
+
+        [TestInitialize]
+        public void BeforeMethod()
+        {
+            // Logfile extension & path specified in App.config
+            string logfileName = $"{TestContext.TestName}";
+            ILoggerRepository repository = LogManager.CreateRepository($"{logfileName}Repository");
+            ThreadContext.Properties["WorkerLoggerProperty"] = logfileName;
+            ThreadContext.Properties["LoggingDirectory"] = LogsDirectory;
+            log4net.Config.XmlConfigurator.Configure(repository);
+            log = LogManager.GetLogger($"{logfileName}Repository", "WorkerLogger");
+
+            LogInfo("Start - Before Test Method");
+            util.GetCPUUsageAndMemory();
+            (driver, browserPID) = basePage.LoadBrowserConfig(driver, BrowserNameFromConfig);
+            LogInfo("PiD of driver: " + browserPID);
+            LogInfo("END - Before Test Method");
+        }
+
+        public static string GenerateTimeStamp()
+        {
+            DateTime saveNow = DateTime.Now;
+            Thread.Sleep(2);
+            string timeStamp = saveNow.ToString("MMddyyyyHHmmss");
+            return timeStamp;
+        }
+
+        [TestCleanup]
+        public void AfterMethodCleanUP()
+        {
+            LogInfo("START - After Test Method CleanUP");
+            LogInfo("Publish browser error logs in file");
+            basePage.AddBrowserLogs(driver);
+            var testStatus = TestContext.CurrentTestOutcome;
+            Console.WriteLine(testStatus);
+            LogInfo("Test case status: " + testStatus);
+            AttachScreenShotIfTestCaseFailed(TestContext, driver, ScreenshotDirectory + @"\" + TestContext.TestName);
+            cleanUp.DeleteDirectories(ConfigurationManager.AppSettings["LogDirectory"], -5);
+            LogInfo("Close Browser");
+            driver.Close();
+            LogInfo("Quit Browser");
+            driver.Quit();
+            exParentTest.Log(Status.Info, "Test Log File Path : <a href='" + LogsDirectory + @"/" + TestContext.TestName + ".log" + "'>Click here</a>");
+            TestContext.AddResultFile(LogsDirectory + @"/" + TestContext.TestName + ".log");
+            LogInfo("END - After Test Method CleanUP");
+        }
+        [AssemblyCleanup]
+        public static void AfterClass()
+        {
+            extent.Flush();
+        }
+    }
+}
+
