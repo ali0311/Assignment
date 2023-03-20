@@ -1,0 +1,66 @@
+using APIAutomation.Models;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Newtonsoft.Json;
+using RestSharp;
+using System;
+
+namespace APIAutomation.Services
+{
+    public class UserService
+    {
+        private readonly RestClient _client;
+
+        public UserService(string baseUrl)
+        {
+            _client = new RestClient(baseUrl);
+        }
+
+        public CreateUserDTO CreateUser(string request)
+        {
+            var restRequest = new RestRequest("users", Method.POST);
+            restRequest.AddHeader("Accept", "application/json");
+            restRequest.AddParameter("application/json", request, ParameterType.RequestBody);
+            var response = _client.Execute(restRequest);
+            ValidateResponseCode(response, 201);
+            var content = response.Content;
+            var data = JsonConvert.DeserializeObject<CreateUserDTO>(content);
+            return data;
+        }
+        public ReadUserDTO GetUser(long id)
+        {
+            var restRequest = new RestRequest($"users/{id}", Method.GET);
+            restRequest.AddHeader("Accept", "application/json");
+            restRequest.RequestFormat = DataFormat.Json;
+            var response = _client.Execute(restRequest);
+            ValidateResponseCode(response, 200);
+            var content = response.Content;
+            var data = JsonConvert.DeserializeObject<ReadUserDTO>(content);
+            return data;
+        }
+        public UpdateDTO UpdateUser(string request, int id)
+        {
+            var restRequest = new RestRequest($"users/{id}", Method.PUT);
+            restRequest.AddHeader("Accept", "application/json");
+            restRequest.AddParameter("application/json", request, ParameterType.RequestBody);
+            var response = _client.Execute(restRequest);
+            ValidateResponseCode(response, 200);
+            var content = response.Content;
+            var data = JsonConvert.DeserializeObject<UpdateDTO>(content);
+            return data;
+        }
+        public IRestResponse DeleteUser(int id)
+        {
+            var restRequest = new RestRequest($"users/{id}", Method.DELETE);
+            restRequest.AddHeader("Accept", "application/json");
+            var response = _client.Execute<RestResponse>(restRequest);
+            return response;
+        }
+        private void ValidateResponseCode(IRestResponse response, int expectedCode)
+        {
+            int statusCode = (int)response.StatusCode;
+            // Assert
+            Assert.AreEqual(expectedCode, statusCode, "Test failed due to incorrect status code");
+        }
+    }
+}
+
