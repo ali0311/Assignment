@@ -1,0 +1,48 @@
+using log4net;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenQA.Selenium;
+using SeleniumTestFramework.Initialize;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SeleniumTestFramework.WebPages
+{
+    public class LoginPage : BasePage
+    {
+        public LoginPage(IWebDriver webDriver, ILog logger) : base(webDriver, logger) { }
+
+        private By txtUserName => By.Id("user-name");
+        private By txtPassword => By.Id("password");
+        private By btnLogin => By.Id("login-button");
+
+        public HomePage LoginToApplication(string userName, string password)
+        {
+            EnterUsername(userName);
+            EnterPassword(password);
+            ClickLogin();
+            return new HomePage(driver, log);
+        }
+        private LoginPage EnterUsername(string userName)
+        {
+            EnterText(txtUserName, userName, "pass username: " + userName);
+            return this;
+        }
+        private LoginPage EnterPassword(string password)
+        {
+            EnterText(txtPassword, password, "pass password");
+            return this;
+        }
+        private LoginPage ClickLogin()
+        {
+            Click(btnLogin, "login button");
+            return this;
+        }
+        public LoginPage VerifyLoginPage()
+        {
+            Assert.IsTrue(driver.Title == "Swag Labs");
+            return this;
+        }
+    }
+}
+
