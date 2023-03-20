@@ -1,0 +1,81 @@
+using log4net;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Edge;
+using OpenQA.Selenium.Remote;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using static System.Configuration.ConfigurationManager;
+
+namespace SeleniumTestFramework.Initialize
+{
+    public class BasePage : WebDriverBase
+    {
+        public BasePage(IWebDriver webDriver, ILog logger) : base(webDriver, logger)
+        {
+            log = logger;
+            driver = webDriver;
+        }
+        public uint chromedriverPID;
+
+        private string envURL => AppSettings["EnvironmentURL"];
+        private string browser => AppSettings["Browser"];
+
+        public (IWebDriver, uint) LoadBrowserConfig(IWebDriver driver, string browserName)
+        {
+            switch (browser)
+            {
+                case "chrome":
+                    var service = ChromeDriverService.CreateDefaultService();
+                    LogInfo("Hide command prompt window");
+                    service.HideCommandPromptWindow = true;
+                    ChromeOptions options = new ChromeOptions();
+                    options.AddArgument("no-sandbox");
+                    options.AddArgument("--start-maximized");
+                    driver = new ChromeDriver(service, options);
+                    LogInfo("Getting process id of chrome launced by selenium webdriver");
+                    chromedriverPID = (uint)service.ProcessId;
+                    LogInfo("Process id of chromedriver being launced: " + chromedriverPID);
+                    break;
+
+                case "edge":
+                    var edge_service = EdgeDriverService.CreateDefaultService();
+                    edge_service.UseVerboseLogging = true;
+                    edge_service.Start();
+                    var edge_options = new EdgeOptions();
+
+                    // For future reference - please check to see if there are options that should be set...
+                    driver = new RemoteWebDriver(edge_service.ServiceUrl, edge_options);
+                    break;
+            }
+
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(30);
+            driver.Navigate().GoToUrl("https://www.goggle.in");
+            driver.Navigate().GoToUrl(envURL);
+            return (driver, chromedriverPID);
+        }
+        public List<string> GetBrowserError(IWebDriver driver)
+        {
+            ILogs logs = driver.Manage().Logs;
+            var logEntries = logs.GetLog(LogType.Browser);
+            List<string> errorLogs = logEntries.Where(x => x.Level == LogLevel.Severe).Select(x => x.Message).ToList();
+            return errorLogs;
+        }
+        public void AddBrowserLogs(IWebDriver driver)
+        {
+            List<string> errorLogs = GetBrowserError(driver);
+            LogError("Number of browser errors is:" + errorLogs.Count);
+            if (errorLogs.Count != 0)
+            {
+                foreach (var logEntry in errorLogs)
+                {
+                    LogError(logEntry);
+                }
+            }
+        }
+    }
+}
+
