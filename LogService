@@ -1,0 +1,53 @@
+using log4net;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenQA.Selenium;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SeleniumTestFramework.LogScript
+{
+    public class LogService
+    {
+        protected ILog log;
+
+        public LogService(ILog logging)
+        {
+            log = logging;
+        }
+        public LogService()
+        {
+        }
+
+        public void LogInfo(string info)
+        {
+            log.Info(info);
+        }
+        public void LogError(string error)
+        {
+            log.Error(error);
+        }
+        public void LogWarn(string warn)
+        {
+            log.Warn(warn);
+        }
+        public void AttachScreenShotIfTestCaseFailed(TestContext testContext, IWebDriver driver, string fileName)
+        {
+            if (driver != null)
+            {
+                if (!testContext.CurrentTestOutcome.ToString().Equals("Passed"))
+                {
+                    Screenshot ss = ((ITakesScreenshot)driver).GetScreenshot();
+                    fileName += ".jpeg";
+                    ss.SaveAsFile(fileName, ScreenshotImageFormat.Jpeg);
+                    testContext.AddResultFile(fileName);
+                }
+            }
+            else
+            {
+                LogInfo("Oops!..Looks like browser is closed before taking a screenshot!");
+            }
+        }
+    }
+}
+
