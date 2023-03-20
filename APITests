@@ -1,0 +1,92 @@
+using APIAutomation.Services;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace APIAutomation.Tests
+{
+    [TestClass]
+    public class CrudOperationTests
+    {
+        private UserService _userService;
+        public TestContext TestContext { get; set; }
+
+        [TestInitialize]
+        public void Setup()
+        {
+            _userService = new UserService("https://reqres.in/api/");
+        }
+
+
+        [TestMethod]
+        public void CreateUser_ReturnNewUser()
+        {
+            // Setting request body
+            string request = @"{ 
+                                    ""name"": ""TestUser"",
+                                    ""job"": ""TestJob""
+                                }";
+
+            // Execute Post Request
+            var response = _userService.CreateUser(request);
+
+            // Assert
+            Assert.IsNotNull(response);
+            Assert.AreEqual("TestUser", response.Name);
+            Assert.AreEqual("TestJob", response.Job);
+        }
+        [TestMethod]
+        public void GetUser_GetSingleUser()
+        {
+            int id = 2;
+            //Execute get request
+            var response = _userService.GetUser(id);
+
+            // Assert
+            Assert.IsNotNull(response);
+            Assert.AreEqual(id, response.Data.Id);
+            Assert.AreEqual("janet.weaver@reqres.in", response.Data.Email);
+        }
+
+        [TestMethod]
+        public void UpdateUser_UpdateExistingUser()
+        {
+            int id = 2;
+            // Setting request body
+            string request = @"{ 
+                                    ""name"": ""TestUser_Updated"",
+                                    ""job"": ""TestJob_Updated""
+                                }";
+
+            // Execute Put Request
+            var existingUser = _userService.UpdateUser(request, id);
+
+            //Assert
+            Assert.IsNotNull(existingUser);
+            Assert.AreEqual(existingUser.Name, existingUser.Name);
+            Assert.AreEqual(existingUser.Job, existingUser.Job);
+        }
+        [TestMethod]
+        public void DeleteUser_DeleteByID()
+        {
+            int id = 2;
+
+            //Execute delete request
+            var response = _userService.DeleteUser(id);
+            int statusCode = (int)response.StatusCode;
+
+            //Assert
+            Assert.AreEqual(204, statusCode);
+        }
+
+        [TestCleanup]
+        public void FlushResults()
+        {
+            var result = TestContext.CurrentTestOutcome;
+            Console.WriteLine(result);
+        }
+    }
+}
