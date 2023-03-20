@@ -1,0 +1,80 @@
+using log4net;
+using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.IO;
+using System.Text;
+using static System.Configuration.ConfigurationManager;
+using System.Data.OleDb;
+using System.Data;
+using Excel = Microsoft.Office.Interop.Excel;
+using System.Collections;
+using System.Runtime.InteropServices;
+using SeleniumTestFramework.LogScript;
+
+namespace SeleniumTestFramework.DataMethods
+{
+    public class DataDriven : LogService
+    {
+        public DataDriven(ILog logger) : base(logger) { }
+
+        Excel.Application xlApp;
+        Excel.Workbook xlWorkBook;
+        Excel.Worksheet xlWorkSheet;
+        Excel.Range xlrange;
+        public void ExecuteSQL(string queryString)
+        {
+            //string connectionString = "Data Source=nuew-sqaa45.ext.gfk;Initial Catalog=GAP_QAT;Integrated Security=True;Connection Timeout=0;";
+            string connectionString = ConnectionStrings["connString"].ConnectionString;
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlCommand command = connection.CreateCommand();
+                command.Connection = connection;
+                command.CommandText = queryString;
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public string[,] GetDataFromExcelFile(string vXlpath, int vSheetNum)
+        {
+            xlApp = new Excel.Application();
+            xlWorkBook = xlApp.Workbooks.Open(@vXlpath);
+            xlWorkSheet = xlWorkBook.Sheets[vSheetNum];
+
+            xlrange = xlWorkSheet.UsedRange;
+
+            int vRowCnt = xlrange.Rows.Count;
+            int vColCnt = xlrange.Columns.Count;
+
+            string[,] vXlData = new string[vRowCnt, vColCnt];
+
+            for (int i = 1; i <= vRowCnt; i++)
+            {
+                for (int j = 1; j <= vColCnt; j++)
+                {
+                    vXlData[i - 1, j - 1] = Convert.ToString(xlrange.Cells[i, j].Value2);
+                }
+            }
+            Marshal.ReleaseComObject(xlWorkSheet);
+            Marshal.ReleaseComObject(xlrange);
+            xlWorkBook.Close(true, null, null);
+            Marshal.ReleaseComObject(xlWorkBook);
+            xlApp.Quit();
+            Marshal.ReleaseComObject(xlApp);
+            return vXlData;
+        }
+        public void WriteExcelData(string filePath, int rowNumber, int colNo, string value)
+        {
+            Excel.Application excelApp = new Excel.Application();
+            Excel.Workbook excelWB = excelApp.Workbooks.Open(filePath);
+            Excel._Worksheet excelWS = excelWB.ActiveSheet;
+            excelWS.Cells[rowNumber, colNo] = value;
+            excelWB.Save();
+            excelWB.Close();
+            excelApp.Quit();
+        }
+    }
+}
+
