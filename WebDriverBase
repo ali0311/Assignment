@@ -1,0 +1,86 @@
+using log4net;
+using OpenQA.Selenium;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using OpenQA.Selenium.Support.UI;
+using SeleniumExtras.WaitHelpers;
+using System.Threading;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SeleniumTestFramework.LogScript;
+
+namespace SeleniumTestFramework.Initialize
+{
+    public class WebDriverBase : LogService
+    {
+        public enum DialogButton
+        {
+            ok,
+            cancel
+        }
+        protected IWebDriver driver;
+
+        public WebDriverBase(IWebDriver webDriver, ILog logger)
+        {
+            driver = webDriver;
+            log = logger;
+        }
+
+        /*All selenium base action methods
+         */
+
+        public void Click(By elementocator, string elementName)
+        {
+            IWebElement element = driver.FindElement(elementocator);
+            LogInfo("Click element: " + elementName);
+            element.Click();
+        }
+        public void EnterText(By elementocator, string textBoxValue, string textBoxlabel)
+        {
+            IWebElement element = driver.FindElement(elementocator);
+            LogInfo("Enter value as: " + textBoxValue + " for textBoxlabel: " + textBoxlabel);
+            element.SendKeys(textBoxValue);
+        }
+        public void WaitForElementGetVisible(By elementLocator, int secs)
+        {
+            WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(secs));
+            wait.Until(ExpectedConditions.ElementIsVisible(elementLocator));
+        }
+        public void Sleep(int seconds)
+        {
+            LogInfo("Sleep for " + seconds + " seconds");
+            Thread.Sleep(seconds * 1000);
+        }
+        public string GetElementInnerText(By elementLocator, string logMsg)
+        {
+            string innerText = driver.FindElement(elementLocator).GetAttribute("innerText").Trim();
+            LogInfo(string.Format("Retrieved innerText {0} for an element {1} | {2}", innerText, logMsg, elementLocator));
+            return innerText;
+        }
+        public bool IsElementDisplayed(By elementLocator)
+        {
+            bool isDisplayed = driver.FindElement(elementLocator).Displayed;
+            return isDisplayed;
+        }
+        public void AssertAreEqual(string actual, string expected, string errorMessage)
+        {
+            Assert.AreEqual(expected, actual, errorMessage);
+        }
+        public void PerformDialogAction(DialogButton buttonName)
+        {
+            Sleep(1);
+            IAlert alert = driver.SwitchTo().Alert();
+            if (buttonName.Equals(DialogButton.ok))
+            {
+                alert.Accept();
+            }
+            else if (buttonName.Equals(DialogButton.cancel))
+            {
+                alert.Dismiss();
+            }
+            LogInfo("Clicked " + buttonName + " on windows pop up");
+            driver.SwitchTo().DefaultContent();
+        }
+    }
+}
+
